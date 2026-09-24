@@ -380,7 +380,7 @@ export const TowerBriefingModal: React.FC<TowerBriefingModalProps> = ({
                   <div>
                     <h5 className="font-bold text-slate-900 text-xs md:text-sm">3 Sinh Lực (Tim)</h5>
                     <p className="text-[11px] text-slate-600 mt-0.5">
-                      Mỗi lần trả lời sai bị trừ 1 mạng (ở chế độ có thời gian thì hết giờ cũng trừ 1 mạng). Hết 3 mạng game over và quay về trạm gần nhất.
+                      Khi làm sai, nếu lựa chọn <strong>leo tiếp từ trạm gần nhất sẽ mất 1 tim</strong>. Khi dùng hết cả 3 tim, người chơi <strong>mặc định quay về Tầng 1</strong>!
                     </p>
                   </div>
                 </div>
@@ -427,12 +427,13 @@ export const TowerBriefingModal: React.FC<TowerBriefingModalProps> = ({
               <div className="p-4 rounded-2xl bg-amber-50 border-2 border-amber-300">
                 <h5 className="font-black text-amber-900 text-xs md:text-sm mb-1.5 flex items-center space-x-1.5">
                   <Layers className="w-4 h-4 text-amber-600" />
-                  <span>Hệ Thống Trạm Cứu Sinh (Checkpoint) & Ngẫu Nhiên Hóa:</span>
+                  <span>Hệ Thống Trạm Cứu Sinh (Checkpoint) & Bảo Toàn Điểm:</span>
                 </h5>
                 <ul className="text-xs text-slate-700 space-y-1">
                   <li>• <strong>Các Trạm kiểm soát</strong>: Đặt tại <strong className="text-indigo-700 font-bold">Tầng 1, Tầng 6, Tầng 11 và Tầng 16</strong>.</li>
-                  <li>• <strong>Cơ chế thất bại</strong>: Khi gặp câu khó hoặc hết tim, bạn có thể lựa chọn <em>"Về Trạm Gần Nhất"</em> (hồi phục 3 Tim) hoặc <em>"Bắt Đầu Lại Từ Tầng 1"</em> để săn điểm combo.</li>
-                  <li>• <strong>Ngân hàng 3 câu/tầng</strong>: Mỗi lần bước vào một tầng, hệ thống sẽ bốc ngẫu nhiên 1 trong 3 câu hỏi để rèn luyện tư duy đa chiều.</li>
+                  <li>• <strong>Bảo toàn số điểm tại trạm</strong>: Khi bước vào trạm mới (vượt qua Tầng 5, 10, 15), số điểm tích luỹ sẽ được lưu lại mốc đó.</li>
+                  <li>• <strong>Cơ chế khi làm sai</strong>: Số điểm tích luỹ sẽ quay về đúng số điểm đã lưu tại trạm gần nhất.</li>
+                  <li>• <strong>Leo tiếp hay Bắt đầu lại</strong>: Lựa chọn leo tiếp từ trạm mất 1 tim; khi hết sạch 3 tim thì mặc định quay về Tầng 1.</li>
                 </ul>
               </div>
 

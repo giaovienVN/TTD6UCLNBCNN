@@ -6,11 +6,13 @@ interface TowerMapProps {
   currentFloor: number;
   towerType: TowerType;
   maxFloorEver: number;
+  checkpointScores?: Record<number, number>;
 }
 
 export const TowerMap: React.FC<TowerMapProps> = ({
   currentFloor,
   towerType,
+  checkpointScores,
 }) => {
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const activeFloorRef = useRef<HTMLDivElement>(null);
@@ -124,6 +126,11 @@ export const TowerMap: React.FC<TowerMapProps> = ({
                       <span className="inline-flex items-center space-x-0.5 px-1.5 py-0.5 rounded-md bg-indigo-50 border border-indigo-200 text-indigo-700 text-[10px] font-bold">
                         <Flag className="w-2.5 h-2.5" />
                         <span>Trạm {floor === 1 ? 'Khởi hành' : floor}</span>
+                        {checkpointScores && (checkpointScores[floor] || 0) > 0 && (
+                          <span className="text-[9px] font-mono text-amber-700 font-black ml-0.5">
+                            ({checkpointScores[floor].toLocaleString()}đ)
+                          </span>
+                        )}
                       </span>
                     )}
 

@@ -42,6 +42,7 @@ export default function App() {
   const [history, setHistory] = useState<PlayerHistoryEntry[]>([]);
   const [startTime, setStartTime] = useState<number>(0);
   const [totalTimeSpent, setTotalTimeSpent] = useState<number>(0);
+  const [checkpointScores, setCheckpointScores] = useState<Record<number, number>>({ 1: 0, 6: 0, 11: 0, 16: 0 });
 
   // Modals & Celebrations
   const [isBriefingOpen, setIsBriefingOpen] = useState<boolean>(false);
@@ -58,6 +59,8 @@ export default function App() {
 
   // Timer Ref
   const timerRef = useRef<NodeJS.Timeout | null>(null);
+  // Track seen question IDs to prevent duplicate questions when revisiting floors
+  const seenQuestionIdsRef = useRef<string[]>([]);
 
   // Load stats from localStorage on mount
   useEffect(() => {
@@ -107,9 +110,10 @@ export default function App() {
     return 'Tập Sự Số Học';
   };
 
-  // Setup Floor: randomly selects 1 of 3 variants for this floor!
+  // Setup Floor: randomly selects 1 of 8 variants for this floor without repeating seen questions
   const setupFloor = useCallback((tower: TowerType, floorNum: number) => {
-    const randomQuestion = getRandomQuestionForFloor(tower, floorNum);
+    const randomQuestion = getRandomQuestionForFloor(tower, floorNum, seenQuestionIdsRef.current);
+    seenQuestionIdsRef.current.push(randomQuestion.id);
     setCurrentFloor(floorNum);
     setActiveQuestion(randomQuestion);
     setSelectedAnswer(null);
@@ -153,9 +157,13 @@ export default function App() {
     sound.playBuzz();
     setIsAnswerSubmitted(true);
     setSelectedAnswer(null);
-    const newLives = lives - 1;
-    setLives(newLives);
     setStreak(0);
+
+    const cp = getCheckpointFloor(currentFloor);
+    const cpScore = checkpointScores[cp] || 0;
+    // Revert accumulated score to checkpoint score:
+    setScore(cpScore);
+    updateStats(currentTower, currentFloor, cpScore);
 
     setHistory((prev) => [
       ...prev,
@@ -171,7 +179,8 @@ export default function App() {
       },
     ]);
 
-    if (newLives <= 0) {
+    if (lives <= 1) {
+      setLives(0);
       setTotalTimeSpent(Math.round((Date.now() - startTime) / 1000));
       setIsSummaryOpen(true);
     }
@@ -186,6 +195,7 @@ export default function App() {
 
   // Start / Restart a tower run from Briefing Modal or Direct Replay
   const handleStartGame = (tower: TowerType, startFloor: number = 1) => {
+    seenQuestionIdsRef.current = [];
     setIsBriefingOpen(false);
     setCurrentTower(tower);
     setCurrentScreen('game');
@@ -199,6 +209,7 @@ export default function App() {
     setStartTime(Date.now());
     setIsSummaryOpen(false);
     setIsReviewOpen(false);
+    setCheckpointScores({ 1: 0, 6: 0, 11: 0, 16: 0 });
     setMilestoneCelebration({ isOpen: false, floor: 0, bonusPoints: 0 });
     setupFloor(tower, startFloor);
   };
@@ -300,10 +311,15 @@ export default function App() {
     } else {
       sound.playBuzz();
       setStreak(0);
-      const newLives = lives - 1;
-      setLives(newLives);
 
-      if (newLives <= 0) {
+      const cp = getCheckpointFloor(currentFloor);
+      const cpScore = checkpointScores[cp] || 0;
+      // Revert accumulated score to checkpoint score:
+      setScore(cpScore);
+      updateStats(currentTower, currentFloor, cpScore);
+
+      if (lives <= 1) {
+        setLives(0);
         setTotalTimeSpent(Math.round((Date.now() - startTime) / 1000));
         setIsSummaryOpen(true);
       }
@@ -339,11 +355,9 @@ export default function App() {
         else if (currentFloor === 15) bonus = isTimed ? 225 : 150;
         else if (currentFloor === 20) bonus = isTimed ? 450 : 300;
 
-        setScore((prev) => {
-          const nextScore = prev + bonus;
-          updateStats(currentTower, currentFloor, nextScore);
-          return nextScore;
-        });
+        const nextScore = score + bonus;
+        setScore(nextScore);
+        updateStats(currentTower, currentFloor, nextScore);
 
         setMilestoneCelebration({
           isOpen: true,
@@ -354,8 +368,15 @@ export default function App() {
       }
 
       // Normal floor advance
+      const nextFloor = currentFloor + 1;
+      if (nextFloor === 6 || nextFloor === 11 || nextFloor === 16) {
+        setCheckpointScores((prev) => ({
+          ...prev,
+          [nextFloor]: score,
+        }));
+      }
       sound.playWhoosh();
-      setupFloor(currentTower, currentFloor + 1);
+      setupFloor(currentTower, nextFloor);
     }
   };
 
@@ -369,26 +390,38 @@ export default function App() {
       updateStats(currentTower, 20, score);
       setIsSummaryOpen(true);
     } else {
+      const nextFloor = floorJustCleared + 1;
+      // Record checkpoint score for new station (Floor 6, 11, 16)
+      if (nextFloor === 6 || nextFloor === 11 || nextFloor === 16) {
+        setCheckpointScores((prev) => ({
+          ...prev,
+          [nextFloor]: score,
+        }));
+      }
       sound.playWhoosh();
-      setupFloor(currentTower, floorJustCleared + 1);
+      setupFloor(currentTower, nextFloor);
     }
   };
 
-  // Failure Action 1: Return to nearest checkpoint (Tầng 1, 6, 11, 16)
+  // Failure Action 1: Return to nearest checkpoint (Tầng 1, 6, 11, 16) - Mất 1 tim khi lựa chọn leo tiếp
   const handleReturnToCheckpoint = () => {
     const cp = getCheckpointFloor(currentFloor);
+    const cpScore = checkpointScores[cp] || 0;
     sound.playCheckpoint();
-    setLives(3);
+    setLives((prev) => Math.max(0, prev - 1)); // Mất 1 tim khi lựa chọn leo tiếp
+    setScore(cpScore); // Quay về số điểm tích lũy mốc trạm
     setStreak(0);
     setIsSummaryOpen(false);
     setupFloor(currentTower, cp);
   };
 
-  // Failure Action 2: Return to Floor 1
+  // Failure Action 2: Return to Floor 1 (Hồi phục 3 tim, điểm về 0)
   const handleReturnToFloor1 = () => {
     sound.playWhoosh();
     setLives(3);
+    setScore(0);
     setStreak(0);
+    setCheckpointScores({ 1: 0, 6: 0, 11: 0, 16: 0 });
     setIsSummaryOpen(false);
     setupFloor(currentTower, 1);
   };
@@ -548,6 +581,7 @@ export default function App() {
                   currentFloor={currentFloor}
                   towerType={currentTower}
                   maxFloorEver={activeStats.maxFloor}
+                  checkpointScores={checkpointScores}
                 />
               </div>
 
@@ -579,6 +613,7 @@ export default function App() {
                   onSelectOption={handleSelectOption}
                   onNextStep={handleNextStep}
                   checkpointFloor={currentCheckpoint}
+                  checkpointScore={checkpointScores[currentCheckpoint] || 0}
                   onReturnToCheckpoint={handleReturnToCheckpoint}
                   onReturnToFloor1={handleReturnToFloor1}
                   lastPointsEarned={lastPointsEarned}

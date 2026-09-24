@@ -11,6 +11,7 @@ interface ChallengeAreaProps {
   onSelectOption: (index: number) => void;
   onNextStep: () => void;
   checkpointFloor: number;
+  checkpointScore: number;
   onReturnToCheckpoint: () => void;
   onReturnToFloor1: () => void;
   lastPointsEarned: number;
@@ -26,6 +27,7 @@ export const ChallengeArea: React.FC<ChallengeAreaProps> = ({
   onSelectOption,
   onNextStep,
   checkpointFloor,
+  checkpointScore,
   onReturnToCheckpoint,
   onReturnToFloor1,
   lastPointsEarned,
@@ -136,7 +138,8 @@ export const ChallengeArea: React.FC<ChallengeAreaProps> = ({
                 <>
                   <XCircle className="w-6 h-6 text-rose-600" />
                   <span className="font-black text-base md:text-lg text-rose-700">
-                    {selectedAnswer === null ? 'Hết giờ!' : 'Chưa chính xác!'} (Bị trừ 1 mạng • Còn {lives} tim)
+                    {selectedAnswer === null ? 'Hết giờ!' : 'Chưa chính xác!'}
+                    {lives > 1 ? ` (Hiện còn ${lives} tim)` : ' (Đã hết 3 tim!)'}
                   </span>
                 </>
               )}
@@ -156,29 +159,63 @@ export const ChallengeArea: React.FC<ChallengeAreaProps> = ({
             )}
           </div>
 
-          {/* Failure Resolution: Return to nearest checkpoint or Floor 1 */}
+          {/* Failure Resolution & Score Rollback */}
           {!isCorrect && (
-            <div className="mb-4 p-3.5 rounded-xl bg-white border border-rose-200 shadow-xs">
-              <div className="text-xs md:text-sm text-rose-800 font-bold mb-3 flex items-center space-x-2">
-                <Flag className="w-4 h-4 text-rose-600" />
-                <span>Quy tắc thất bại: Chọn trạm để quay lại tiếp tục leo tháp</span>
+            <div className="space-y-3 mb-4">
+              {/* Checkpoint score rollback notification */}
+              <div className="p-3.5 bg-amber-50/90 rounded-xl border border-amber-300 flex items-center justify-between text-xs text-amber-950 shadow-2xs">
+                <div className="flex items-center space-x-2">
+                  <Shield className="w-4 h-4 text-amber-700 shrink-0" />
+                  <span className="font-bold">Điểm tích lũy đã quay về mốc Trạm Tầng {checkpointFloor}:</span>
+                </div>
+                <span className="font-mono font-black text-sm text-amber-800 shrink-0">
+                  {checkpointScore.toLocaleString()} đ
+                </span>
               </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                <button
-                  onClick={onReturnToCheckpoint}
-                  className="py-3 px-4 rounded-xl bg-gradient-to-r from-amber-500 via-orange-500 to-amber-600 hover:from-amber-600 hover:to-orange-600 font-black text-white text-xs md:text-sm shadow-md transition flex items-center justify-center space-x-2 cursor-pointer"
-                >
-                  <Shield className="w-4 h-4" />
-                  <span>Về Trạm Gần Nhất (Tầng {checkpointFloor})</span>
-                </button>
 
-                <button
-                  onClick={onReturnToFloor1}
-                  className="py-3 px-4 rounded-xl bg-slate-100 hover:bg-slate-200 font-black text-slate-800 text-xs md:text-sm border border-slate-300 transition flex items-center justify-center space-x-2 cursor-pointer"
-                >
-                  <RotateCcw className="w-4 h-4" />
-                  <span>Bắt Đầu Lại Từ Tầng 1</span>
-                </button>
+              {/* Action buttons */}
+              <div className="p-3.5 rounded-xl bg-white border border-rose-200 shadow-xs">
+                <div className="text-xs md:text-sm text-rose-800 font-bold mb-3 flex items-center space-x-2">
+                  <Flag className="w-4 h-4 text-rose-600 shrink-0" />
+                  <span>Quy tắc: Leo tiếp sẽ mất 1 tim • Hết 3 tim mặc định về Tầng 1</span>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                  {lives > 1 ? (
+                    <button
+                      onClick={onReturnToCheckpoint}
+                      className="py-3 px-4 rounded-xl bg-gradient-to-r from-amber-500 via-orange-500 to-amber-600 hover:from-amber-600 hover:to-orange-600 font-black text-white text-xs md:text-sm shadow-md transition flex flex-col items-center justify-center cursor-pointer"
+                    >
+                      <div className="flex items-center space-x-1.5">
+                        <Shield className="w-4 h-4" />
+                        <span>Leo tiếp từ Trạm (Tầng {checkpointFloor})</span>
+                      </div>
+                      <span className="text-[11px] font-medium opacity-90 text-amber-100 mt-0.5">
+                        Mất 1 tim • Còn {lives - 1} tim
+                      </span>
+                    </button>
+                  ) : (
+                    <div className="p-3 rounded-xl bg-rose-50 border border-rose-300 text-rose-800 text-xs font-bold text-center flex items-center justify-center space-x-1.5">
+                      <span>💔 Đã hết 3 tim! Mặc định về Tầng 1</span>
+                    </div>
+                  )}
+
+                  <button
+                    onClick={onReturnToFloor1}
+                    className={`py-3 px-4 rounded-xl font-black text-xs md:text-sm transition flex flex-col items-center justify-center cursor-pointer ${
+                      lives <= 1
+                        ? 'bg-rose-600 hover:bg-rose-700 text-white shadow-md'
+                        : 'bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-300'
+                    }`}
+                  >
+                    <div className="flex items-center space-x-1.5">
+                      <RotateCcw className="w-4 h-4" />
+                      <span>Bắt Đầu Lại Từ Tầng 1</span>
+                    </div>
+                    <span className={`text-[11px] font-medium mt-0.5 ${lives <= 1 ? 'text-rose-100' : 'text-slate-500'}`}>
+                      {lives <= 1 ? 'Mặc định khi hết 3 tim' : 'Hồi 3 tim • Làm lại từ đầu'}
+                    </span>
+                  </button>
+                </div>
               </div>
             </div>
           )}

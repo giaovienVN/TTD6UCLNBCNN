@@ -69,8 +69,14 @@ export const SummaryModal: React.FC<SummaryModalProps> = ({
         <h2 className="text-2xl md:text-3xl font-black text-slate-900 mb-1.5 tracking-tight">
           {isCleared
             ? 'CHINH PHỤC ĐỈNH THÁP THÀNH CÔNG!'
-            : `HẾT MẠNG - DỪNG BƯỚC TẠI TẦNG ${floorReached}`}
+            : `HẾT 3 TIM - DỪNG BƯỚC TẠI TẦNG ${floorReached}`}
         </h2>
+
+        {!isCleared && (
+          <p className="text-xs text-rose-700 font-bold mb-2">
+            💔 Bạn đã dùng hết 3 mạng sinh lực. Mặc định phải quay về Tầng 1 để bắt đầu lại!
+          </p>
+        )}
 
         <div className="flex items-center justify-center space-x-2 mb-6">
           <span className="text-xs md:text-sm text-slate-500">
@@ -132,24 +138,17 @@ export const SummaryModal: React.FC<SummaryModalProps> = ({
 
         {/* Action Buttons */}
         <div className="space-y-2.5">
-          {/* Respawn at checkpoint button (if lost) */}
-          {!isCleared && (
-            <button
-              onClick={onRespawnCheckpoint}
-              className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-amber-500 via-orange-500 to-amber-600 hover:from-amber-600 hover:to-orange-600 font-bold text-white text-sm shadow-md shadow-amber-500/20 transition cursor-pointer flex items-center justify-center space-x-2"
-            >
-              <Shield className="w-4 h-4" />
-              <span>Quay lại Trạm gần nhất (Tầng {checkpointFloor})</span>
-            </button>
-          )}
-
-          {/* Replay full tower */}
+          {/* Replay full tower: Always default return to Floor 1 on failure when out of lives */}
           <button
             onClick={onRestart}
-            className="w-full py-3 rounded-2xl bg-slate-100 hover:bg-slate-200 font-bold text-slate-800 text-sm border border-slate-300 transition cursor-pointer flex items-center justify-center space-x-2"
+            className={`w-full py-3.5 rounded-2xl font-black text-sm shadow-md transition cursor-pointer flex items-center justify-center space-x-2 ${
+              isCleared
+                ? 'bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-300'
+                : 'bg-gradient-to-r from-rose-600 to-amber-600 hover:from-rose-700 hover:to-amber-700 text-white shadow-rose-600/20'
+            }`}
           >
             <RotateCcw className="w-4 h-4" />
-            <span>Bắt đầu lại từ Tầng 1</span>
+            <span>{isCleared ? 'Chinh Phục Lại Từ Tầng 1' : '🔄 Mặc Định Bắt Đầu Lại Từ Tầng 1'}</span>
           </button>
 
           {/* Bottom Dual Buttons */}

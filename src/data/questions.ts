@@ -4,8 +4,8 @@ import { bcnnQuestionsPool } from './bcnnQuestions';
 
 export { uclnQuestionsPool, bcnnQuestionsPool };
 
-// Helper to get random 1 of 3 questions for a specific floor
-export function getRandomQuestionForFloor(tower: TowerType, floor: number): Question {
+// Helper to get random 1 of 8 questions for a specific floor (with anti-repetition support)
+export function getRandomQuestionForFloor(tower: TowerType, floor: number, excludeIds: string[] = []): Question {
   const pool = tower === 'ucln' ? uclnQuestionsPool[floor] : bcnnQuestionsPool[floor];
   if (!pool || pool.length === 0) {
     // Fallback if floor not found
@@ -20,8 +20,10 @@ export function getRandomQuestionForFloor(tower: TowerType, floor: number): Ques
       hint: 'Gợi ý phân tích thừa số nguyên tố.'
     };
   }
-  const randomIndex = Math.floor(Math.random() * pool.length);
-  return pool[randomIndex];
+  const available = pool.filter(q => !excludeIds.includes(q.id));
+  const candidatePool = available.length > 0 ? available : pool;
+  const randomIndex = Math.floor(Math.random() * candidatePool.length);
+  return candidatePool[randomIndex];
 }
 
 // Get all 3 questions for a floor

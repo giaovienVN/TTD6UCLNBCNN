@@ -36,7 +36,7 @@ export function generateStandaloneHtml(): string {
   <div id="game-app" class="flex-1 flex flex-col"></div>
 
   <script>
-    // Embedded Data: 3 questions per floor (60 UCLN + 60 BCNN = 120 questions)
+    // Embedded Data: 8 questions per floor (160 UCLN + 160 BCNN = 320 questions)
     const UCLN_POOL = ${uclnPoolJson};
     const BCNN_POOL = ${bcnnPoolJson};
 
@@ -167,12 +167,14 @@ export function generateStandaloneHtml(): string {
       return 'Tập Sự Số Học';
     }
 
-    // Random question from pool
-    function pickRandomQuestion(tower, floor) {
+    // Random question from pool without repeating seen questions
+    function pickRandomQuestion(tower, floor, excludeIds = []) {
       const pool = tower === 'ucln' ? UCLN_POOL[floor] : BCNN_POOL[floor];
       if (!pool || pool.length === 0) return null;
-      const idx = Math.floor(Math.random() * pool.length);
-      return pool[idx];
+      const available = pool.filter(q => !excludeIds.includes(q.id));
+      const candidates = available.length > 0 ? available : pool;
+      const idx = Math.floor(Math.random() * candidates.length);
+      return candidates[idx];
     }
 
     // App State
@@ -197,6 +199,8 @@ export function generateStandaloneHtml(): string {
       history: [],
       startTime: 0,
       totalTime: 0,
+      checkpointScores: { 1: 0, 6: 0, 11: 0, 16: 0 },
+      seenQuestionIds: [],
       isHintOpen: false,
       isSummaryOpen: false,
       isMilestoneOpen: false,
@@ -247,8 +251,11 @@ export function generateStandaloneHtml(): string {
       sound.playBuzz();
       state.isSubmitted = true;
       state.selectedAnswer = null;
-      state.lives -= 1;
       state.streak = 0;
+
+      const cp = getCheckpoint(state.floor);
+      const cpScore = state.checkpointScores[cp] || 0;
+      state.score = cpScore;
 
       state.history.push({
         floor: state.floor,
@@ -261,7 +268,8 @@ export function generateStandaloneHtml(): string {
         explanation: state.question.explanation
       });
 
-      if (state.lives <= 0) {
+      if (state.lives <= 1) {
+        state.lives = 0;
         state.totalTime = Math.round((Date.now() - state.startTime) / 1000);
         state.isSummaryOpen = true;
       }
@@ -270,7 +278,11 @@ export function generateStandaloneHtml(): string {
 
     function enterFloor(floorNum) {
       state.floor = floorNum;
-      state.question = pickRandomQuestion(state.tower, floorNum);
+      state.question = pickRandomQuestion(state.tower, floorNum, state.seenQuestionIds || []);
+      if (state.question) {
+        if (!state.seenQuestionIds) state.seenQuestionIds = [];
+        state.seenQuestionIds.push(state.question.id);
+      }
       state.selectedAnswer = null;
       state.isSubmitted = false;
       state.hiddenOptions = [];
@@ -292,6 +304,8 @@ export function generateStandaloneHtml(): string {
       state.fiftyFiftyUses = 1;
       state.history = [];
       state.startTime = Date.now();
+      state.checkpointScores = { 1: 0, 6: 0, 11: 0, 16: 0 };
+      state.seenQuestionIds = [];
       state.isSummaryOpen = false;
       state.isMilestoneOpen = false;
       enterFloor(startFloor);
@@ -349,9 +363,13 @@ export function generateStandaloneHtml(): string {
       } else {
         sound.playBuzz();
         state.streak = 0;
-        state.lives -= 1;
 
-        if (state.lives <= 0) {
+        const cp = getCheckpoint(state.floor);
+        const cpScore = state.checkpointScores[cp] || 0;
+        state.score = cpScore;
+
+        if (state.lives <= 1) {
+          state.lives = 0;
           state.totalTime = Math.round((Date.now() - state.startTime) / 1000);
           state.isSummaryOpen = true;
         }
@@ -389,7 +407,11 @@ export function generateStandaloneHtml(): string {
         return;
       }
 
-      enterFloor(state.floor + 1);
+      const nextFloor = state.floor + 1;
+      if (nextFloor === 6 || nextFloor === 11 || nextFloor === 16) {
+        state.checkpointScores[nextFloor] = state.score;
+      }
+      enterFloor(nextFloor);
     }
 
     function continueAfterMilestone() {
@@ -399,22 +421,31 @@ export function generateStandaloneHtml(): string {
         state.isSummaryOpen = true;
         render();
       } else {
-        enterFloor(state.milestoneFloor + 1);
+        const nextFloor = state.milestoneFloor + 1;
+        if (nextFloor === 6 || nextFloor === 11 || nextFloor === 16) {
+          state.checkpointScores[nextFloor] = state.score;
+        }
+        enterFloor(nextFloor);
       }
     }
 
     function returnToCheckpoint() {
       const cp = getCheckpoint(state.floor);
+      const cpScore = state.checkpointScores[cp] || 0;
       sound.playCheckpoint();
-      state.lives = 3;
+      state.lives = Math.max(0, state.lives - 1); // Mất 1 tim khi lựa chọn leo tiếp
+      state.score = cpScore; // Quay về mốc điểm trạm
       state.streak = 0;
       state.isSummaryOpen = false;
       enterFloor(cp);
     }
 
     function returnToFloor1() {
+      sound.playWhoosh();
       state.lives = 3;
+      state.score = 0;
       state.streak = 0;
+      state.checkpointScores = { 1: 0, 6: 0, 11: 0, 16: 0 };
       state.isSummaryOpen = false;
       enterFloor(1);
     }
@@ -768,7 +799,7 @@ export function generateStandaloneHtml(): string {
                   <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div class="p-3.5 rounded-2xl bg-slate-50 border border-slate-200">
                       <div class="font-bold text-rose-700 text-xs md:text-sm">❤️ 3 Sinh Lực (Tim)</div>
-                      <p class="text-[11px] text-slate-600 mt-1">Mỗi lần trả lời sai (hoặc hết giờ ở chế độ đếm ngược) bị trừ 1 mạng. Hết 3 mạng kết thúc lượt leo tháp.</p>
+                      <p class="text-[11px] text-slate-600 mt-1">Khi làm sai, nếu lựa chọn <strong>leo tiếp từ trạm gần nhất sẽ mất 1 tim</strong>. Khi dùng hết cả 3 tim, người chơi <strong>mặc định quay về Tầng 1</strong>!</p>
                     </div>
                     <div class="p-3.5 rounded-2xl bg-slate-50 border border-slate-200">
                       <div class="font-bold text-orange-700 text-xs md:text-sm">🔥 Chuỗi Thưởng Combo</div>
@@ -779,8 +810,8 @@ export function generateStandaloneHtml(): string {
                       <p class="text-[11px] text-slate-600 mt-1">💡 Gợi ý thừa số (2 lượt) • ⚡ Loại trừ 50/50 (1 lượt) loại bỏ 2 phương án sai.</p>
                     </div>
                     <div class="p-3.5 rounded-2xl bg-slate-50 border border-slate-200">
-                      <div class="font-bold text-amber-700 text-xs md:text-sm">🛡️ Trạm Cứu Sinh (Checkpoint)</div>
-                      <p class="text-[11px] text-slate-600 mt-1">Đặt tại Tầng 1, 6, 11, 16. Khi thua có thể hồi sinh tại trạm gần nhất!</p>
+                      <div class="font-bold text-amber-700 text-xs md:text-sm">🛡️ Trạm Cứu Sinh & Bảo Toàn Điểm</div>
+                      <p class="text-[11px] text-slate-600 mt-1">Đặt tại Tầng 1, 6, 11, 16. Điểm số được lưu lại tại mỗi trạm; khi làm sai điểm tích lũy quay về mốc trạm đó.</p>
                     </div>
                   </div>
                 \`}
@@ -836,7 +867,7 @@ export function generateStandaloneHtml(): string {
                 \${f}
               </span>
               <span>\${isBoss ? '👑 ĐỈNH THÁP' : 'Tầng ' + f}</span>
-              \${isCp ? '<span class="text-[9px] px-1 py-0.5 rounded bg-indigo-100 text-indigo-700 font-bold">Trạm</span>' : ''}
+              \${isCp ? ('<span class="text-[9px] px-1 py-0.5 rounded bg-indigo-100 text-indigo-700 font-bold">Trạm' + ((state.checkpointScores && state.checkpointScores[f] > 0) ? ' (' + state.checkpointScores[f].toLocaleString() + 'đ)' : '') + '</span>') : ''}
               \${isMile ? '<span class="text-[9px] px-1 py-0.5 rounded bg-amber-100 text-amber-800 font-bold">Mốc</span>' : ''}
             </div>
             <div>
@@ -903,16 +934,40 @@ export function generateStandaloneHtml(): string {
           feedbackHtml = \`
             <div class="mt-6 p-5 rounded-2xl bg-rose-50 border-2 border-rose-300 text-rose-950 shadow-md">
               <div class="flex items-center justify-between mb-3.5">
-                <span class="font-black text-rose-700 text-base md:text-lg">✗ Chưa chính xác! (Bị trừ 1 mạng • Còn \${state.lives} tim)</span>
+                <span class="font-black text-rose-700 text-base md:text-lg">
+                  ✗ Chưa chính xác! \${state.lives > 1 ? '(Hiện còn ' + state.lives + ' tim)' : '(Đã hết 3 tim!)'}
+                </span>
               </div>
+
+              <!-- Score Rollback Info -->
+              <div class="p-3 bg-amber-50 rounded-xl border border-amber-300 mb-3 flex items-center justify-between text-xs text-amber-950 shadow-2xs">
+                <div class="flex items-center space-x-1.5">
+                  <span>🛡️</span>
+                  <span class="font-bold">Điểm tích lũy đã quay về mốc Trạm Tầng \${cpFloor}:</span>
+                </div>
+                <span class="font-mono font-black text-sm text-amber-800">
+                  \${((state.checkpointScores && state.checkpointScores[cpFloor]) || 0).toLocaleString()} đ
+                </span>
+              </div>
+
               <div class="p-3.5 bg-white rounded-xl border border-rose-200 mb-3 shadow-xs">
-                <div class="text-xs md:text-sm font-bold text-rose-800 mb-2">Quy tắc thất bại: Chọn trạm để quay lại tiếp tục leo tháp</div>
+                <div class="text-xs md:text-sm font-bold text-rose-800 mb-2">Quy tắc: Leo tiếp sẽ mất 1 tim • Hết 3 tim mặc định về Tầng 1</div>
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                  <button onclick="returnToCheckpoint()" class="py-3 px-3 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white font-bold text-xs md:text-sm shadow-md cursor-pointer">
-                    🛡️ Về Trạm Gần Nhất (Tầng \${cpFloor})
-                  </button>
-                  <button onclick="returnToFloor1()" class="py-3 px-3 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold text-xs md:text-sm border border-slate-300 cursor-pointer">
-                    🔄 Bắt Đầu Lại Từ Tầng 1
+                  \${state.lives > 1 ? \`
+                    <button onclick="returnToCheckpoint()" class="py-3 px-3 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white font-bold text-xs md:text-sm shadow-md cursor-pointer flex flex-col items-center justify-center">
+                      <span>🛡️ Leo tiếp từ Trạm (Tầng \${cpFloor})</span>
+                      <span class="text-[11px] opacity-90 text-amber-100 font-normal mt-0.5">Mất 1 tim • Còn \${state.lives - 1} tim</span>
+                    </button>
+                  \` : \`
+                    <div class="p-3 rounded-xl bg-rose-50 border border-rose-300 text-rose-800 text-xs font-bold text-center flex items-center justify-center">
+                      💔 Đã hết 3 tim! Mặc định về Tầng 1
+                    </div>
+                  \`}
+                  <button onclick="returnToFloor1()" class="py-3 px-3 rounded-xl font-bold text-xs md:text-sm border transition cursor-pointer flex flex-col items-center justify-center \${state.lives <= 1 ? 'bg-rose-600 hover:bg-rose-700 text-white border-rose-700 shadow-md' : 'bg-slate-100 hover:bg-slate-200 text-slate-800 border-slate-300'}">
+                    <span>🔄 Bắt Đầu Lại Từ Tầng 1</span>
+                    <span class="text-[11px] font-normal mt-0.5 \${state.lives <= 1 ? 'text-rose-100' : 'text-slate-500'}">
+                      \${state.lives <= 1 ? 'Mặc định khi hết 3 tim' : 'Hồi 3 tim • Làm lại từ đầu'}
+                    </span>
                   </button>
                 </div>
               </div>
@@ -1113,10 +1168,13 @@ export function generateStandaloneHtml(): string {
         \${state.isSummaryOpen ? \`
           <div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm overflow-y-auto">
             <div class="max-w-xl w-full bg-white border border-slate-200 rounded-3xl p-6 md:p-8 shadow-2xl text-center text-slate-800 my-8">
-              <div class="text-5xl mb-3">\${state.floor >= 20 && state.history[state.history.length-1].isCorrect ? '👑' : '🛡️'}</div>
+              <div class="text-5xl mb-3">\${state.floor >= 20 && state.history[state.history.length-1].isCorrect ? '👑' : '💔'}</div>
               <h2 class="text-2xl md:text-3xl font-black text-slate-900 mb-1">
-                \${state.floor >= 20 && state.history[state.history.length-1].isCorrect ? 'CHINH PHỤC ĐỈNH THÁP THÀNH CÔNG!' : 'HẾT MẠNG - DỪNG BƯỚC TẠI TẦNG ' + state.floor}
+                \${state.floor >= 20 && state.history[state.history.length-1].isCorrect ? 'CHINH PHỤC ĐỈNH THÁP THÀNH CÔNG!' : 'HẾT 3 TIM - DỪNG BƯỚC TẠI TẦNG ' + state.floor}
               </h2>
+              \${!(state.floor >= 20 && state.history[state.history.length-1].isCorrect) ? \`
+                <p class="text-xs md:text-sm text-rose-700 font-bold mb-2">💔 Bạn đã dùng hết 3 mạng sinh lực. Mặc định phải quay về Tầng 1 để bắt đầu lại!</p>
+              \` : ''}
               <div class="flex items-center justify-center space-x-2 text-xs text-slate-500 mb-4">
                 <span>\${isU ? 'Tháp Phân Rã (ƯCLN)' : 'Tháp Bội Số (BCNN)'}</span>
                 <span>•</span>
@@ -1148,13 +1206,8 @@ export function generateStandaloneHtml(): string {
               </div>
 
               <div class="space-y-2.5">
-                \${!(state.floor >= 20 && state.history[state.history.length-1].isCorrect) ? \`
-                  <button onclick="returnToCheckpoint()" class="w-full py-3.5 rounded-2xl bg-gradient-to-r from-amber-500 to-orange-500 text-white font-bold text-sm shadow-md cursor-pointer">
-                    🛡️ Hồi sinh từ Trạm Kiểm Soát (Tầng \${cpFloor})
-                  </button>
-                \` : ''}
-                <button onclick="returnToFloor1()" class="w-full py-3 rounded-2xl bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold text-sm border border-slate-300 cursor-pointer">
-                  🔄 Bắt Đầu Lại Từ Tầng 1
+                <button onclick="returnToFloor1()" class="w-full py-3.5 rounded-2xl bg-gradient-to-r from-rose-600 to-amber-600 hover:from-rose-700 hover:to-amber-700 text-white font-black text-sm shadow-md cursor-pointer">
+                  🔄 \${state.floor >= 20 && state.history[state.history.length-1].isCorrect ? 'Chinh Phục Lại Từ Tầng 1' : 'Mặc Định Bắt Đầu Lại Từ Tầng 1'}
                 </button>
                 <button onclick="state.isSummaryOpen = false; state.screen = 'mode_select'; render();" class="w-full py-2.5 rounded-xl bg-white border border-slate-250 text-slate-700 text-xs font-semibold hover:bg-slate-100 cursor-pointer">
                   🏛️ Chọn Tháp Khác
