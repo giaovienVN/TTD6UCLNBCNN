@@ -1,0 +1,6 @@
+{
+  "name": "Chinh Phục Tháp Đôi Số Học: ƯCLN & BCNN",
+  "description": "Trò chơi học tập tương tác Chinh phục Tháp Đôi Số Học: Tháp Phân Rã (ƯCLN) và Tháp Bội Số (BCNN) với 20 tầng thử thách, cơ chế gamification, âm thanh và lời giải chi tiết.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

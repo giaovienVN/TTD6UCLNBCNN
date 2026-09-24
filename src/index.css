@@ -1,0 +1,99 @@
+@import "tailwindcss";
+
+@layer utilities {
+  /* Custom scrollbar for light theme */
+  .custom-scrollbar::-webkit-scrollbar {
+    width: 6px;
+  }
+  .custom-scrollbar::-webkit-scrollbar-track {
+    background: #f1f5f9;
+    border-radius: 9999px;
+  }
+  .custom-scrollbar::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 9999px;
+  }
+  .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: #94a3b8;
+  }
+}
+
+/* Tower Fortress Battlement & Stone Border Styling */
+.tower-castle-frame {
+  position: relative;
+  border: 4px solid #b45309; /* amber-700 */
+  box-shadow: 
+    0 0 0 2px #fef3c7,
+    0 0 0 6px #78350f,
+    0 20px 40px -15px rgba(120, 53, 15, 0.25);
+  border-radius: 1.5rem;
+}
+
+/* Tower crenellations (răng cưa tháp thành cổ) */
+.tower-crenellations {
+  background-image: repeating-linear-gradient(
+    90deg,
+    #78350f 0px,
+    #78350f 16px,
+    transparent 16px,
+    transparent 28px
+  );
+  height: 8px;
+  width: 100%;
+}
+
+.tower-stone-pattern {
+  background-color: #fafaf9;
+  background-image: radial-gradient(#d6d3d1 0.75px, transparent 0.75px);
+  background-size: 16px 16px;
+}
+
+@keyframes pulseGlow {
+  0%, 100% {
+    box-shadow: 0 0 15px rgba(245, 158, 11, 0.4);
+  }
+  50% {
+    box-shadow: 0 0 30px rgba(245, 158, 11, 0.85);
+  }
+}
+
+.pulse-glow {
+  animation: pulseGlow 2s infinite ease-in-out;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.animate-fadeIn {
+  animation: fadeIn 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes milestoneBounce {
+  0% {
+    transform: scale(0.5) translateY(20px);
+    opacity: 0;
+  }
+  60% {
+    transform: scale(1.08) translateY(-4px);
+    opacity: 1;
+  }
+  80% {
+    transform: scale(0.98) translateY(2px);
+  }
+  100% {
+    transform: scale(1) translateY(0);
+    opacity: 1;
+  }
+}
+
+.animate-milestone {
+  animation: milestoneBounce 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
